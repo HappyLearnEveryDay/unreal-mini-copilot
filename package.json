@@ -1,0 +1,57 @@
+{
+  "name": "unreal-mini-copilot",
+  "displayName": "unreal-mini-copilot",
+  "description": "mvp",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "unreal-mini-copilot.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "unreal-ai.generate",
+        "title": "Generate Code"
+      },
+      {
+        "command": "unreal-ai.setApiKey",
+        "title": "Set DeepSeek API Key"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "unreal-ai.generate",
+        "key": "ctrl+alt+g",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.4",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.96.0",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2"
+  }
+}
