@@ -1,6 +1,95 @@
 # Unreal Mini Copilot
 
-三个文件通过以下流程进行交互，共同实现VS Code扩展的AI代码生成功能：
+VSCode扩展，基于DeepSeek API为虚幻引擎C++开发提供智能代码生成功能。
+
+## 功能特点
+
+- 💡 智能代码生成：基于上下文生成符合虚幻引擎规范的C++代码
+- 🌊 流式响应：实时展示生成过程
+- 🎯 精准插入：自动定位并插入到合适位置(待定)
+- 🎨 动画效果：优雅的代码选择和生成动画
+- ⚡ 快捷键支持：`Ctrl+Alt+G` 快速触发
+
+## 核心文件结构
+
+```
+src/
+├── api/
+│   └── deepseek-client.ts   # DeepSeek API 客户端
+├── services/
+│   └── editor-service.ts    # 编辑器服务
+└── extension.ts             # 扩展入口
+```
+
+### 文件说明
+
+#### extension.ts
+- 扩展主入口
+- 注册命令：`unreal-ai.generate` 和 `unreal-ai.setApiKey`
+- 协调API调用和编辑器操作
+- 处理API密钥的安全存储
+
+#### api/deepseek-client.ts
+- DeepSeek API的封装
+- 支持流式响应
+- 实现指数退避重试机制
+- 错误处理和响应解析
+
+#### services/editor-service.ts
+- 编辑器操作封装
+- 文本选择和动画效果
+- 代码插入和格式化
+- 光标位置管理
+
+## 使用方法
+
+1. 安装扩展后，首先设置DeepSeek API密钥：
+   - 命令面板中输入 "Set DeepSeek API Key"
+   - 输入并保存API密钥
+
+2. 生成代码：
+   - 选中需要补充代码的上下文
+   - 按下 `Ctrl+Alt+G` 或使用命令面板执行 "Generate Code"
+   - 等待代码生成完成
+
+## 代码生成规范
+
+生成的代码将遵循以下规范：
+- 严格符合虚幻引擎代码规范
+- 包含UE特有的宏和反射声明
+- 使用现代C++特性
+- 包含必要的注释
+- 处理边界情况
+- 保持与上下文代码风格一致
+
+## 开发说明
+
+### 环境要求
+- Node.js
+- VS Code
+- TypeScript
+
+### 本地开发
+```bash
+git clone <repository-url>
+cd unreal-mini-copilot
+npm install
+code .
+```
+
+按F5启动调试即可。
+
+### 构建扩展
+```bash
+npm run compile
+vsce package
+```
+
+## 注意事项
+
+- 需要有效的DeepSeek API密钥
+- 建议在生成大量代码时使用流式响应
+- 可以随时通过ESC键取消代码生成
 
 ## 用户交互层 (extension.ts)
 
