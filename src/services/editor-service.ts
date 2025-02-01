@@ -16,39 +16,60 @@ export class EditorService {
         const totalLines = doc.lineCount - 1;
         const endChar = doc.lineAt(totalLines).text.length;
 
+        // 先将视口滚动到顶部
+        editor.revealRange(
+            new vscode.Range(0, 0, 0, 0),
+            vscode.TextEditorRevealType.AtTop
+        );
+
+        // 等待一小段时间确保滚动完成
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // 创建动画装饰器
         const decorationType = vscode.window.createTextEditorDecorationType({
             backgroundColor: new vscode.ThemeColor('editor.selectionBackground'),
             isWholeLine: true
         });
 
-        // 逐行扩展动画
-        let currentLine = 0;
-        const animationInterval = setInterval(() => {
-            if (currentLine > totalLines) {
-                clearInterval(animationInterval);
-                decorationType.dispose();
-                return;
-            }
+        // 返回Promise等待动画完成
+        return new Promise((resolve) => {
+            let currentLine = 0;
             
-            const range = new vscode.Range(
-                new vscode.Position(0, 0),
-                new vscode.Position(currentLine, doc.lineAt(currentLine).text.length)
-            );
-            editor.setDecorations(decorationType, [range]);
-            currentLine++;
-        }, 50);
+            // 动态调整动画速度（最大2秒完成）
+            const baseSpeed = doc.lineCount > 500 ? 20 : 50;
+            
+            const animationInterval = setInterval(() => {
+                if (currentLine > totalLines) {
+                    clearInterval(animationInterval);
+                    decorationType.dispose();
+                    const selection = new vscode.Selection(0, 0, totalLines, endChar);
+                    editor.selection = selection;
+                    // 定位到底部
+                    editor.revealRange(
+                        new vscode.Range(totalLines, 0, totalLines, endChar),
+                        vscode.TextEditorRevealType.Default
+                    );
+                    resolve(selection);
+                    return;
+                }
 
-        // 返回完整选择范围
-        return new vscode.Selection(
-            new vscode.Position(0, 0),
-            new vscode.Position(totalLines, endChar)
-        );
+                // 仅更新装饰器
+                const range = new vscode.Range(
+                    new vscode.Position(0, 0),
+                    new vscode.Position(currentLine, doc.lineAt(currentLine).text.length)
+                );
+                editor.setDecorations(decorationType, [range]);
+                
+                currentLine++;
+            }, baseSpeed);
+        });
     }
 
     static async validateSelection(editor: vscode.TextEditor): Promise<string | undefined> {
-        const newSelection = await this.createFullSelection(editor);
-        editor.selection = newSelection;
+        if (editor.selection.isEmpty) {
+            const newSelection = await this.createFullSelection(editor);
+            editor.selection = newSelection;
+        }
 
         const selectedText = editor.document.getText(editor.selection);
         if (!selectedText.trim()) {
@@ -63,60 +84,81 @@ export class EditorService {
         const insertionBase = editor.selection.end;
         let currentPosition = insertionBase;
 
-        // 插入初始注释并预留空行
+        // 插入生成时间注释
         await editor.edit(editBuilder => {
             const header = `\n// AI生成代码 - ${new Date().toLocaleString()}\n\n`;
             editBuilder.insert(insertionBase, header);
-            currentPosition = insertionBase.translate(2); // 下移两行到空行位置
+            currentPosition = insertionBase.translate(2);
         });
 
-        const decorationType = vscode.window.createTextEditorDecorationType({
-            backgroundColor: new vscode.ThemeColor('editor.selectionBackground'),
-            isWholeLine: true
-        });
-
-        for await (const chunk of codeStream) {
-            if (token.isCancellationRequested) {
-                await editor.edit(editBuilder => {
-                    editBuilder.insert(currentPosition, "\n// 生成已取消");
-                });
-                break;
-            }
-
-            // 处理换行符
-            const processedChunk = chunk.replace(/\r\n/g, '\n');
-
-            await editor.edit(editBuilder => {
-                editBuilder.insert(currentPosition, processedChunk);
-
-                // 计算新位置
-                const lines = processedChunk.split('\n');
-                if (lines.length > 1) {
-                    currentPosition = new vscode.Position(
-                        currentPosition.line + lines.length - 1,
-                        lines[lines.length - 1].length
-                    );
-                } else {
-                    currentPosition = currentPosition.translate(0, processedChunk.length);
+        try {
+            for await (const chunk of codeStream) {
+                if (token.isCancellationRequested) {
+                    await editor.edit(editBuilder => {
+                        editBuilder.insert(currentPosition, "\n// 生成已取消");
+                    });
+                    break;
                 }
 
-                // 高亮显示新插入的行
-                const range = new vscode.Range(
-                    currentPosition.line - lines.length + 1,
-                    0,
-                    currentPosition.line,
-                    lines[lines.length - 1].length
+                const processedChunk = chunk.replace(/\r\n/g, '\n');
+                await this.insertChunk(editor, currentPosition, processedChunk);
+                
+                currentPosition = this.calculateNewPosition(
+                    currentPosition,
+                    processedChunk
                 );
-                editor.setDecorations(decorationType, [range]);
-                setTimeout(() => editor.setDecorations(decorationType, []), 500);
+
+                // 确保新插入的内容可见
+                editor.revealRange(
+                    new vscode.Range(currentPosition, currentPosition),
+                    vscode.TextEditorRevealType.Default
+                );
+
+                fullCode += processedChunk;
+            }
+
+            await editor.edit(editBuilder => {
+                editBuilder.insert(currentPosition, "\n");
             });
 
-            fullCode += processedChunk;
+        } catch (error) {
+            await this.insertErrorNotice(editor, currentPosition, error);
+            throw error;
         }
+    }
 
-        // 确保最后有空行
+    private static async insertChunk(
+        editor: vscode.TextEditor,
+        position: vscode.Position,
+        chunk: string
+    ) {
         await editor.edit(editBuilder => {
-            editBuilder.insert(currentPosition, "\n");
+            editBuilder.insert(position, chunk);
+        });
+    }
+
+    private static calculateNewPosition(
+        currentPosition: vscode.Position,
+        chunk: string
+    ): vscode.Position {
+        const lines = chunk.split('\n');
+        if (lines.length > 1) {
+            return new vscode.Position(
+                currentPosition.line + lines.length - 1,
+                lines[lines.length - 1].length
+            );
+        }
+        return currentPosition.translate(0, chunk.length);
+    }
+
+    private static async insertErrorNotice(
+        editor: vscode.TextEditor,
+        position: vscode.Position,
+        error: unknown
+    ) {
+        const message = error instanceof Error ? error.message : '未知错误';
+        await editor.edit(editBuilder => {
+            editBuilder.insert(position, `\n// 生成错误: ${message}`);
         });
     }
 }

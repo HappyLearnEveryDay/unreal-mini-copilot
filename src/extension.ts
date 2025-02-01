@@ -1,4 +1,3 @@
-// extension.ts
 import * as vscode from 'vscode';
 import axios from 'axios';
 import { Readable } from 'stream';
@@ -43,36 +42,40 @@ export function activate(context: vscode.ExtensionContext) {
         const editor = EditorService.validateEditor();
         if (!editor) return;
 
-        const selectedText = await EditorService.validateSelection(editor);
-        if (!selectedText) return;
-
         try {
-            const apiKey = await getApiKey(context);
-            if (!apiKey) return;
+            // 并行处理API请求和动画
+            const [selectedText, apiKey] = await Promise.all([
+                EditorService.validateSelection(editor),
+                getApiKey(context)
+            ]);
+
+            if (!selectedText || !apiKey) return;
 
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: "AI代码生成中...",
                 cancellable: true
             }, async (_progress, token) => {
+                // 创建客户端并开始请求（在动画播放时就开始）
+                const client = new DeepSeekClient(apiKey);
                 const promptTemplate = `你是一个专业的虚幻引擎C++开发者，根据以下需求生成高质量代码。要求：
-1. 严格遵循虚幻引擎代码规范
-2. 补充必要注释（特别是UE特有的宏和反射声明）
-3. 使用现代C++特性（智能指针、移动语义等）
-4. 完善处理边界情况
+1. 严格遵循虚幻引擎代码规范（UCLASS/UPROPERTY等宏使用）
+2. 补充必要注释（包括函数功能、参数说明、注意事项）
+3. 使用现代C++特性（智能指针、移动语义、Lambda表达式）
+4. 完善处理边界情况（空指针、无效输入、资源释放）
 5. 仅生成新增代码，禁止重复现有内容
-6. 代码需直接插入在以下上下文末尾，保持连贯性
+6. 保持代码风格与上下文一致
 
 现有上下文代码：
-\`\`\`
+\`\`\`cpp
 ${selectedText}
 \`\`\`
 
-请生成可直接插入到上述代码末尾的新代码：`;
+请生成可直接插入在文件末尾的新代码：`;
 
-                const client = new DeepSeekClient(apiKey);
                 const codeStream = client.generateCodeStream(promptTemplate);
-
+                
+                // 确保代码在动画完成后插入
                 await EditorService.insertStreamContent(editor, codeStream, token);
             });
 
