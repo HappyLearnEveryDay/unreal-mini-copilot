@@ -1,71 +1,76 @@
-# unreal-mini-copilot README
+# Unreal Mini Copilot
 
-This is the README for your extension "unreal-mini-copilot". After writing up a brief description, we recommend including the following sections.
+三个文件通过以下流程进行交互，共同实现VS Code扩展的AI代码生成功能：
 
-## Features
+## 用户交互层 (extension.ts)
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+注册两个VS Code命令：
 
-For example if there is an image subfolder under your extension project workspace:
+- `setApiKey`：通过SecretStorage安全存储API密钥
+- `generate`：核心生成命令
 
-\!\[feature X\]\(images/feature-x.png\)
+调用EditorService进行编辑器验证
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+协调DeepSeekClient和EditorService的工作流
 
-## Requirements
+## AI服务层 (deepseek-client.ts)
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+DeepSeekClient类处理：
 
-## Extension Settings
+- 构建符合DeepSeek API要求的请求格式
+- 实现带指数退避的重试机制（最大3次重试）
+- 使用SSE(Server-Sent Events)处理流式响应
+- 将API响应转换为AsyncGenerator<string>
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## 编辑器服务层 (editor-service.ts)
 
-For example:
+EditorService提供：
 
-This extension contributes the following settings:
+- 编辑器状态验证（是否打开文件/选中文本）
+- 流式内容插入功能
+- 智能光标位置计算
+- 错误状态提示（取消/错误信息插入）
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## 完整工作流程
 
-## Known Issues
+1. 用户执行`unreal-ai.generate`命令
+2. EditorService验证编辑器和选中文本有效性
+3. 通过VS Code的SecretStorage获取API密钥
+4. DeepSeekClient发送结构化请求到DeepSeek API：
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+    ```json
+    {
+      "model": "deepseek-chat",
+      "messages": [{
+        "role": "user",
+        "content": "专业虚幻引擎C++开发要求...${prompt}"
+      }],
+      "temperature": 0.3,
+      "stream": true
+    }
+    ```
 
-## Release Notes
+5. 处理流式响应时：
 
-Users appreciate release notes as you update your extension.
+    - 按`data:`前缀解析JSON数据
+    - 通过AsyncGenerator逐块yield代码内容
 
-### 1.0.0
+6. EditorService实时插入代码：
 
-Initial release of ...
+    - 初始插入生成时间注释
+    - 按chunk更新编辑器内容
+    - 自动计算光标位置（支持多行插入）
+    - 处理取消请求时插入终止标记
 
-### 1.0.1
+## 异常处理
 
-Fixed issue #.
+- 429错误自动重试（1000/2000/4000ms退避）
+- 网络错误/API错误显示友好提示
+- 编辑操作错误插入代码注释提示
 
-### 1.1.0
+## 关键交互点
 
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+- `extension.ts`作为中枢协调数据和状态流转
+- 异步生成器(AsyncGenerator)实现流式处理
+- 编辑器操作全部通过`editBuilder`原子操作保证线程安全
+- 进度通知与取消令牌集成VS Code原生API
