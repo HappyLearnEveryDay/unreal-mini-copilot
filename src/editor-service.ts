@@ -1,4 +1,3 @@
-// editor-service.ts
 import * as vscode from 'vscode';
 
 export class EditorService {
@@ -47,8 +46,10 @@ export class EditorService {
     }
 
     static async validateSelection(editor: vscode.TextEditor): Promise<string | undefined> {
-        const newSelection = await this.createFullSelection(editor);
-        editor.selection = newSelection;
+        if (editor.selection.isEmpty) {
+            const newSelection = await this.createFullSelection(editor);
+            editor.selection = newSelection;
+        }
 
         const selectedText = editor.document.getText(editor.selection);
         if (!selectedText.trim()) {
@@ -57,6 +58,7 @@ export class EditorService {
         }
         return selectedText;
     }
+
 
     static async insertStreamContent(editor: vscode.TextEditor, codeStream: AsyncGenerator<string>, token: vscode.CancellationToken): Promise<void> {
         let fullCode = '';
@@ -68,11 +70,6 @@ export class EditorService {
             const header = `\n// AI生成代码 - ${new Date().toLocaleString()}\n\n`;
             editBuilder.insert(insertionBase, header);
             currentPosition = insertionBase.translate(2); // 下移两行到空行位置
-        });
-
-        const decorationType = vscode.window.createTextEditorDecorationType({
-            backgroundColor: new vscode.ThemeColor('editor.selectionBackground'),
-            isWholeLine: true
         });
 
         for await (const chunk of codeStream) {
@@ -99,16 +96,6 @@ export class EditorService {
                 } else {
                     currentPosition = currentPosition.translate(0, processedChunk.length);
                 }
-
-                // 高亮显示新插入的行
-                const range = new vscode.Range(
-                    currentPosition.line - lines.length + 1,
-                    0,
-                    currentPosition.line,
-                    lines[lines.length - 1].length
-                );
-                editor.setDecorations(decorationType, [range]);
-                setTimeout(() => editor.setDecorations(decorationType, []), 500);
             });
 
             fullCode += processedChunk;

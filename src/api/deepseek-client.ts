@@ -1,3 +1,4 @@
+// deepseek-client.ts
 import axios from 'axios';
 import { Readable } from 'stream';
 
@@ -42,14 +43,7 @@ export class DeepSeekClient {
             model: "deepseek-chat",
             messages: [{
                 role: "user",
-                content: `你是一个专业的虚幻引擎C++开发者，根据以下需求生成高质量代码。要求：
-1. 符合虚幻引擎代码规范
-2. 包含必要的注释
-3. 使用现代C++特性
-4. 处理边界情况
-5. 只需生成代码和必要的注释，不需要其他的说明
-
-需求描述：${prompt}`
+                content: prompt
             }],
             temperature: 0.3,
             stream: true
