@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Readable } from 'stream';
 import { EditorService } from './services/editor-service';
 import { DeepSeekClient } from './api/deepseek-client';
+import { FileReplaceService } from './services/file-replace-service';
+
 
 interface DeepSeekResponseChunk {
     choices: {
@@ -86,6 +88,68 @@ ${selectedText}
             console.error('[Unreal AI]', error);
         }
     }));
+    // 修改后的optimizeFile命令
+context.subscriptions.push(vscode.commands.registerCommand('unreal-ai.optimizeFile', async () => {
+    const editor = EditorService.validateEditor();
+    if (!editor) return;
+
+    try {
+        const [apiKey, fullContent] = await Promise.all([
+            getApiKey(context),
+            editor.document.getText()
+        ]);
+
+        if (!apiKey) return;
+
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "全文件优化中...",
+            cancellable: true
+        }, async (progress, token) => {
+            // 添加进度提示
+            progress.report({ message: "正在连接DeepSeek API..." });
+            
+            const client = new DeepSeekClient(apiKey);
+            const codeStream = client.processEntireFileStream(fullContent);
+            
+            // 初始化进度
+            progress.report({ increment: 10, message: "开始重构文件内容..." });
+            
+            // 添加取消按钮处理
+            token.onCancellationRequested(() => {
+                vscode.window.showWarningMessage('用户取消了重构操作');
+            });
+
+            await FileReplaceService.replaceEntireFile(editor, codeStream, token);
+            
+            // 完成进度
+            progress.report({ increment: 100 });
+        });
+
+        vscode.window.showInformationMessage('文件优化完成！');
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        vscode.window.showErrorMessage(`文件优化失败: ${errorMessage}`);
+        console.error('[Unreal AI]', error);
+    }
+}));
+    
+
+ 
+
+// 在package.json中添加快捷键绑定
+// "contributes": {
+//     "commands": [
+//         {
+//             "command": "unreal-ai.optimizeFile",
+//             "title": "Optimize Entire File",
+//             "key": "ctrl+alt+o"  // Windows/Linux
+//             // "key": "cmd+alt+o" // macOS
+//         }
+//     ]
+// }
+
 }
 
 export function deactivate() {}

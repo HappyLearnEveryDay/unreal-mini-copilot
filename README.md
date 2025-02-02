@@ -5,10 +5,15 @@ VSCode扩展，基于DeepSeek API为虚幻引擎C++开发提供智能代码生�
 ## 功能特点
 
 - 💡 智能代码生成：基于上下文生成符合虚幻引擎规范的C++代码
+- 🔄 文件优化：一键优化整个文件的代码结构和质量
 - 🌊 流式响应：实时展示生成过程
-- 🎯 精准插入：自动定位并插入到合适位置(待定)
 - 🎨 动画效果：优雅的代码选择和生成动画
-- ⚡ 快捷键支持：`Ctrl+Alt+G` 快速触发
+- ⚡ 快捷键支持：多个快捷操作方式
+
+## 快捷键
+
+- `Ctrl+Alt+G`: 生成代码
+- `Ctrl+Alt+O`: 优化当前文件
 
 ## 核心文件结构
 
@@ -17,7 +22,8 @@ src/
 ├── api/
 │   └── deepseek-client.ts   # DeepSeek API 客户端
 ├── services/
-│   └── editor-service.ts    # 编辑器服务
+│   ├── editor-service.ts    # 编辑器服务
+│   └── file-replace-service.ts # 文件替换服务
 └── extension.ts             # 扩展入口
 ```
 
@@ -51,6 +57,11 @@ src/
    - 选中需要补充代码的上下文
    - 按下 `Ctrl+Alt+G` 或使用命令面板执行 "Generate Code"
    - 等待代码生成完成
+
+3. 优化文件：
+   - 打开要优化的文件
+   - 按下 `Ctrl+Alt+O` 或使用命令面板执行 "Optimize Current File"
+   - 等待优化完成，过程中可以看到实时更新
 
 ## 代码生成规范
 

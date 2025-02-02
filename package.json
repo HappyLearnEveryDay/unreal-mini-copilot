@@ -24,12 +24,22 @@
       {
         "command": "unreal-ai.setApiKey",
         "title": "Set DeepSeek API Key"
+      },
+      {
+        "command": "unreal-ai.optimizeFile",
+        "title": "Optimize Current File"
       }
     ],
     "keybindings": [
       {
         "command": "unreal-ai.generate",
         "key": "ctrl+alt+g",
+        "when": "editorTextFocus"
+      },
+
+      {
+        "command": "unreal-ai.optimizeFile",
+        "key": "ctrl+alt+o",
         "when": "editorTextFocus"
       }
     ]

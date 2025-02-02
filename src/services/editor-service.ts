@@ -36,7 +36,7 @@ export class EditorService {
             let currentLine = 0;
             
             // 动态调整动画速度（最大2秒完成）
-            const baseSpeed = doc.lineCount > 500 ? 20 : 50;
+            const baseSpeed = doc.lineCount > 500 ? 10 : 20;
             
             const animationInterval = setInterval(() => {
                 if (currentLine > totalLines) {
