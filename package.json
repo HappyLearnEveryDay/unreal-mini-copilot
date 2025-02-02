@@ -36,7 +36,6 @@
         "key": "ctrl+alt+g",
         "when": "editorTextFocus"
       },
-
       {
         "command": "unreal-ai.optimizeFile",
         "key": "ctrl+alt+o",

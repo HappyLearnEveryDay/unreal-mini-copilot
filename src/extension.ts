@@ -135,21 +135,6 @@ context.subscriptions.push(vscode.commands.registerCommand('unreal-ai.optimizeFi
     }
 }));
     
-
- 
-
-// 在package.json中添加快捷键绑定
-// "contributes": {
-//     "commands": [
-//         {
-//             "command": "unreal-ai.optimizeFile",
-//             "title": "Optimize Entire File",
-//             "key": "ctrl+alt+o"  // Windows/Linux
-//             // "key": "cmd+alt+o" // macOS
-//         }
-//     ]
-// }
-
 }
 
 export function deactivate() {}
